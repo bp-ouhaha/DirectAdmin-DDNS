@@ -82,8 +82,6 @@ echo ("Public IPV6: " . $publicip . "\n");
 
 curl_close($ch);
 
-$data = file_exists($storage) ? json_decode(file_get_contents($storage), true) : False;
-
 if ($data["publicipv6"] === $publicip) {
     echo ("Public IP has not changed, no update needed.\n");
 } else {
