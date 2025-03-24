@@ -21,6 +21,9 @@ $url = 'http://ipecho.net/plain';
 $ch = curl_init(); // undefined ? "apt install php-curl" : "yay ^^";
 $timeout = 5;
 
+################
+# IPV4 section #
+################
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
@@ -34,7 +37,7 @@ curl_close($ch);
 
 $data = file_exists($storage) ? json_decode(file_get_contents($storage), true) : False;
 
-if ($data["publicip"] === $publicip) {
+if ($data["publicipv4"] === $publicip) {
     echo ("Public IP has not changed, no update needed.\n");
 } else {
     echo ("Public IP has changed, updating DNS to $publicip...\n");
@@ -62,7 +65,53 @@ if ($data["publicip"] === $publicip) {
 
     $result = $sock->fetch_parsed_body();
 
-    $data = array();
-    $data["publicip"] = $publicip;
+    $data["publicipv4"] = $publicip;
+    file_put_contents($storage, json_encode($data));
+}
+################
+# IPV6 section #
+################
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
+curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6);
+
+$publicip = curl_exec($ch);
+
+echo ("Public IPV6: " . $publicip . "\n");
+
+curl_close($ch);
+
+$data = file_exists($storage) ? json_decode(file_get_contents($storage), true) : False;
+
+if ($data["publicipv6"] === $publicip) {
+    echo ("Public IP has not changed, no update needed.\n");
+} else {
+    echo ("Public IP has changed, updating DNS to $publicip...\n");
+
+    $sock = new HTTPSocket;
+    if ($server_ssl == 'Y') {
+        $sock->connect("ssl://" . $server_host, $server_port);
+    } else {
+        //$sock->connect($server_host, $server_port);
+        exit("Cant connect using SSL/TLS, aborting...");
+    }
+
+    $sock->set_login($server_login, $server_pass);
+
+    $sock->query(
+        '/CMD_API_DNS_CONTROL',
+        array(
+            'domain' => $domain,
+            'action' => 'add',
+            'type' => 'AAAA',
+            'name' => $subdomain . '.',
+            'value'    => $publicip,
+        )
+    );
+
+    $result = $sock->fetch_parsed_body();
+
+    $data["publicipv6"] = $publicip;
     file_put_contents($storage, json_encode($data));
 }
